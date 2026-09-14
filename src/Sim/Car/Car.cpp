@@ -702,7 +702,11 @@ void Car::_UpdateDoubleJumpOrFlip(float tickTime, const MutatorConfig& mutatorCo
 		}
 
 		if (jumpPressed && _internalState.airTimeSinceJump < DOUBLEJUMP_MAX_DELAY) {
-			float inputMagnitude = abs(controls.yaw) + abs(controls.pitch) + abs(controls.roll);
+			// `Dodge*()` rather than the fields themselves: see CarControls.h. They are the
+			// same numbers unless a caller has said the dodge sees an unscaled stick, which is
+			// what the game does.
+			float inputMagnitude =
+				abs(controls.DodgeYaw()) + abs(controls.DodgePitch()) + abs(controls.DodgeRoll());
 			bool isFlipInput = inputMagnitude >= config.dodgeDeadzone;
 
 			bool canUse;
@@ -728,9 +732,14 @@ void Car::_UpdateDoubleJumpOrFlip(float tickTime, const MutatorConfig& mutatorCo
 					{
 						float forwardSpeedRatio = abs(forwardSpeed_UU) / CAR_MAX_SPEED;
 
-						btVector3 dodgeDir = btVector3(-controls.pitch, controls.yaw + controls.roll, 0);
+						// The direction comes off the same axes the threshold used, because in the
+						// game it does: its dodge vector, read live off `DodgeComponent`, is
+						// `(-pitch, yaw + roll)` built from the *raw* `ControllerInput`.
+						btVector3 dodgeDir = btVector3(
+							-controls.DodgePitch(), controls.DodgeYaw() + controls.DodgeRoll(), 0);
 
-						if (abs(controls.yaw + controls.roll) < 0.1f && abs(controls.pitch) < 0.1f) {
+						if (abs(controls.DodgeYaw() + controls.DodgeRoll()) < 0.1f
+							&& abs(controls.DodgePitch()) < 0.1f) {
 							dodgeDir = { 0, 0, 0 };
 						} else {
 							dodgeDir = dodgeDir.safeNormalized();

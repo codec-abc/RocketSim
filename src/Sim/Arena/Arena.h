@@ -49,6 +49,14 @@ public:
 
 	DropshotTilesState _dropshotTilesState;
 
+	/// Whether this arena's Bullet collision configuration is still intact.
+	///
+	/// Cheap enough to call every tick. See `btDefaultCollisionConfiguration::RS_IsSane`.
+	bool RS_CollisionConfigSane() const { return _bulletWorldParams.collisionConfig.RS_IsSane(); }
+
+	/// Address to put a hardware watchpoint on. See `btDefaultCollisionConfiguration::RS_WatchAddr`.
+	const void* RS_CollisionConfigWatchAddr() const { return _bulletWorldParams.collisionConfig.RS_WatchAddr(); }
+
 	const MutatorConfig& GetMutatorConfig() { return _mutatorConfig; }
 	void SetMutatorConfig(const MutatorConfig& mutatorConfig);
 

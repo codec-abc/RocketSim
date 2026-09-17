@@ -80,6 +80,28 @@ public:
 	btDefaultCollisionConfiguration() = default;
 	void setup(const btDefaultCollisionConstructionInfo& constructionInfo = btDefaultCollisionConstructionInfo());
 
+	/// Whether `setup` has run and nothing has since overwritten what it allocated.
+	///
+	/// **The default constructor leaves every pointer below indeterminate** -- it is `= default`,
+	/// not a constructor -- while the destructor frees all of them unconditionally. So an
+	/// instance that was never set up, or whose memory has been trodden on, destructs by calling
+	/// a virtual through a garbage pointer. That is a crash a long way from its cause, and it is
+	/// the one this exists to catch early: call it on a live arena and it answers in a few
+	/// nanoseconds.
+	/// The address of the first pointer `setup` allocates, for a hardware watchpoint.
+	///
+	/// `RS_IsSane` says *that* something trod on this object; this says *where* to watch so a
+	/// debugger can say *who*. `ba w8 <this>` in cdb stops on the instruction that writes it.
+	const void* RS_WatchAddr() const { return (const void*)&m_convexConvexCreateFunc; }
+
+	bool RS_IsSane() const {
+		return m_convexConvexCreateFunc != nullptr
+			&& m_convexConcaveCreateFunc != nullptr
+			&& m_compoundCreateFunc != nullptr
+			&& m_emptyCreateFunc != nullptr
+			&& m_pdSolver != nullptr;
+	}
+
 	virtual ~btDefaultCollisionConfiguration();
 
 	///memory pools

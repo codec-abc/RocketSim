@@ -192,8 +192,11 @@ void Car::_FinishPhysicsTick(const MutatorConfig& mutatorConfig) {
 			vel = _rigidBody.m_linearVelocity,
 			angVel = _rigidBody.m_angularVelocity;
 
-		if (vel.length2() > (CAR_MAX_SPEED * UU_TO_BT) * (CAR_MAX_SPEED * UU_TO_BT))
-			vel = vel.normalized() * (CAR_MAX_SPEED * UU_TO_BT);
+		// From the mutator config rather than the constant, so a mode can raise it. Defaults to
+		// CAR_MAX_SPEED, so an unconfigured arena is unchanged.
+		float maxSpeed = mutatorConfig.carMaxSpeed * UU_TO_BT;
+		if (vel.length2() > maxSpeed * maxSpeed)
+			vel = vel.normalized() * maxSpeed;
 
 		if (angVel.length2() > (CAR_MAX_ANG_SPEED * CAR_MAX_ANG_SPEED))
 			angVel = angVel.normalized() * CAR_MAX_ANG_SPEED;

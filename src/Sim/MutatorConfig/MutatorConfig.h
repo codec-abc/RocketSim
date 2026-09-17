@@ -28,6 +28,13 @@ struct MutatorConfig {
 
 		ballMass,
 		ballMaxSpeed = RLConst::BALL_MAX_SPEED,
+
+		// Hard ceiling on a car's speed, uu/s. Defaults to the game's own 2300.
+		//
+		// A mutator rather than a constant so a game can let a car go faster than Rocket League
+		// ever does, without every car everywhere going faster. Sits beside ballMaxSpeed, which
+		// has always been settable for exactly the same reason.
+		carMaxSpeed = RLConst::CAR_MAX_SPEED,
 		ballDrag = RLConst::BALL_DRAG,
 
 		// Friction between car and world (arena)
@@ -85,6 +92,6 @@ jumpImmediateForce, boostAccelGround, boostAccelAir, boostUsedPerSecond, respawn
 carSpawnBoostAmount, bumpCooldownTime, boostPadCooldown_Big, boostPadCooldown_Small, \
 ballHitExtraForceScale, bumpForceScale, ballRadius, unlimitedFlips, unlimitedDoubleJumps, \
 rechargeBoostEnabled, rechargeBoostPerSecond, rechargeBoostDelay, \
-demoMode, enableTeamDemos, goalBaseThresholdY
+demoMode, enableTeamDemos, goalBaseThresholdY, carMaxSpeed
 
 RS_NS_END

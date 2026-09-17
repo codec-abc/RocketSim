@@ -28,13 +28,6 @@ struct MutatorConfig {
 
 		ballMass,
 		ballMaxSpeed = RLConst::BALL_MAX_SPEED,
-
-		// Hard ceiling on a car's speed, uu/s. Defaults to the game's own 2300.
-		//
-		// A mutator rather than a constant so a game can let a car go faster than Rocket League
-		// ever does, without every car everywhere going faster. Sits beside ballMaxSpeed, which
-		// has always been settable for exactly the same reason.
-		carMaxSpeed = RLConst::CAR_MAX_SPEED,
 		ballDrag = RLConst::BALL_DRAG,
 
 		// Friction between car and world (arena)
@@ -56,7 +49,19 @@ struct MutatorConfig {
 		boostPadCooldown_Big = RLConst::BoostPads::COOLDOWN_BIG,
 		boostPadCooldown_Small = RLConst::BoostPads::COOLDOWN_SMALL,
 
-		carSpawnBoostAmount = RLConst::BOOST_SPAWN_AMOUNT;
+		carSpawnBoostAmount = RLConst::BOOST_SPAWN_AMOUNT,
+
+		// Hard ceiling on a car's speed, uu/s. Defaults to the game's own 2300.
+		//
+		// A mutator rather than a constant so a game can let a car go faster than Rocket League
+		// ever does, without every car everywhere going faster. `ballMaxSpeed` has always been
+		// settable for exactly the same reason.
+		//
+		// **Declared last on purpose.** Adding a field in the middle moves every field after it,
+		// and a build system that does not track header dependencies will happily link fresh
+		// objects against stale ones -- which is not a compile error, it is heap corruption at
+		// run time. Appending costs nothing and cannot do that.
+		carMaxSpeed = RLConst::CAR_MAX_SPEED;
 
 	float
 		ballHitExtraForceScale = 1,

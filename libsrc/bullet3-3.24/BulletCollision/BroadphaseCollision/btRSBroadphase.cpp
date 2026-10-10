@@ -92,6 +92,54 @@ btRSBroadphase::~btRSBroadphase() {
 	}
 }
 
+
+// ---------------------------------------------------------------------------
+// Which grid cells of a static triangle mesh actually contain triangles.
+//
+// Answering that costs a BVH traversal per cell, and the answer is the same for every arena
+// built from the same mesh and the same grid -- so it is computed once and kept. See the comment
+// in `_UpdateCellsStatic` for the measurement that motivated this.
+//
+// Keyed on the grid as well as the shape: a different cell size or extent is a different set of
+// questions and must not reuse these answers.
+#include <map>
+#include <mutex>
+#include <vector>
+
+namespace {
+
+struct RsCellKey {
+    const void* shape;
+    float cellSize;
+    int cellsX, cellsY, cellsZ;
+    float minX, minY, minZ;
+
+    bool operator<(const RsCellKey& o) const {
+        if (shape != o.shape) return shape < o.shape;
+        if (cellSize != o.cellSize) return cellSize < o.cellSize;
+        if (cellsX != o.cellsX) return cellsX < o.cellsX;
+        if (cellsY != o.cellsY) return cellsY < o.cellsY;
+        if (cellsZ != o.cellsZ) return cellsZ < o.cellsZ;
+        if (minX != o.minX) return minX < o.minX;
+        if (minY != o.minY) return minY < o.minY;
+        return minZ < o.minZ;
+    }
+};
+
+// `char` rather than `bool`: 0 unknown, 1 has triangles, 2 empty. A vector<bool> would be a
+// bitset, which is smaller and much more awkward to fill from several places.
+std::map<RsCellKey, std::vector<char>>& RsCellCache() {
+    static std::map<RsCellKey, std::vector<char>> cache;
+    return cache;
+}
+
+std::mutex& RsCellCacheMutex() {
+    static std::mutex m;
+    return m;
+}
+
+}  // namespace
+
 template <bool ADD>
 void _UpdateCellsStatic(btRSBroadphase* _this, btRSBroadphaseProxy* proxy) {
 
@@ -144,13 +192,36 @@ void _UpdateCellsStatic(btRSBroadphase* _this, btRSBroadphaseProxy* proxy) {
 				
 				if (isTriMesh) {
 					auto triMeshShape = (btTriangleMeshShape*)colObj->m_collisionShape;
-					btVector3 cellMin = _this->GetCellMinPos(i, j, k);
-					btVector3 cellMax = cellMin + btVector3(_this->cellSize, _this->cellSize, _this->cellSize);
 
-					callbackInst.hit = false;
-					triMeshShape->processAllTriangles(&callbackInst, cellMin, cellMax);
+					// **Asked once per (mesh, grid), not once per arena.** The traversal below is
+					// about 90 us and there are thousands of cells, which made this the single
+					// largest cost in building an arena -- and it is paid again on the first
+					// `updateAabbs`, which removes and re-adds this same proxy. The mesh is shared
+					// and immutable and the grid does not vary, so the answer cannot change.
+					bool hasTris;
+					{
+						RsCellKey key{
+							triMeshShape, _this->cellSize,
+							_this->cellsX, _this->cellsY, _this->cellsZ,
+							_this->minPos.x(), _this->minPos.y(), _this->minPos.z()};
+						int cellIndex = (i * _this->cellsY + j) * _this->cellsZ + k;
 
-					if (!callbackInst.hit) {
+						std::lock_guard<std::mutex> guard(RsCellCacheMutex());
+						auto& answers = RsCellCache()[key];
+						if (answers.empty())
+							answers.assign((size_t)_this->totalCells, 0);
+
+						if (answers[cellIndex] == 0) {
+							btVector3 cellMin = _this->GetCellMinPos(i, j, k);
+							btVector3 cellMax = cellMin + btVector3(_this->cellSize, _this->cellSize, _this->cellSize);
+							callbackInst.hit = false;
+							triMeshShape->processAllTriangles(&callbackInst, cellMin, cellMax);
+							answers[cellIndex] = callbackInst.hit ? 1 : 2;
+						}
+						hasTris = answers[cellIndex] == 1;
+					}
+
+					if (!hasTris) {
 						numSkipped++;
 
 						if (ADD) {
